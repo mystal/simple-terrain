@@ -1,4 +1,5 @@
 extern crate image;
+extern crate rand;
 
 use std::f64;
 
@@ -14,6 +15,21 @@ fn sine_field(alpha: f64, offset: f64) -> NoiseField {
     Box::new(move |x, y| {
         let p = alpha.cos() * x + alpha.sin() * y;
         (p + offset).sin()
+    })
+}
+
+fn scale(field: NoiseField, factor: f64) -> NoiseField {
+    Box::new(move |x, y| {
+        field(x / factor, y / factor) * factor
+    })
+}
+
+
+fn noise_field(n: i32, fall: f64) -> NoiseField {
+    (0..n).fold(Box::new(|x, y| 0.0), |noise, i| {
+        let alpha = rand::random::<f64>() * f64::consts::PI * 2.0;
+        let offset = rand::random::<f64>() * f64::consts::PI * 2.0;
+        Box::new(move |x, y| noise(x, y) + scale(sine_field(alpha, offset), fall.powi(i))(x, y))
     })
 }
 
@@ -52,13 +68,34 @@ fn grayscale(v: f64) -> image::Luma<u8> {
     image::Luma([channel])
 }
 
+fn terracolor(v: f64) -> image::Rgb<u8> {
+    image::Rgb(
+        if v < 0.50 {
+            [0x20, 0x20, 0xFF] // ocean
+        } else if v < 0.55 {
+            [0x40, 0x40, 0xFF] // shallow water
+        } else if v < 0.6 {
+            [0x40, 0xA0, 0x40] // plains
+        } else if v < 0.8 {
+            [0x30, 0x80, 0x30] // forest
+        } else if v < 0.85 {
+            [0x80, 0x80, 0x80] // mountain
+        } else if v < 0.9 {
+            [0x60, 0x60, 0x60] // tall mountain
+        } else {
+            [0xFF, 0xFF, 0xFF] // snow
+        }
+    )
+}
+
 // TODO: Apply ColorMap on each NoiseGrid value to get pixel color
 fn render(noise_grid: NoiseGrid, img_path: &str) {
     let height = noise_grid.len() as u32;
     let width = noise_grid[0].len() as u32;
     let img = ImageBuffer::from_fn(width, height, |x, y| {
         //image::Rgba([0u8, 0, 0, 255])
-        grayscale(noise_grid[y as usize][x as usize])
+        //grayscale(noise_grid[y as usize][x as usize])
+        terracolor(noise_grid[y as usize][x as usize])
     });
 
     // Write the contents of this image to the Writer in PNG format.
@@ -66,7 +103,19 @@ fn render(noise_grid: NoiseGrid, img_path: &str) {
 }
 
 fn main() {
-    let noise_field = sine_field(0.0, 0.0);
-    let noise_grid = grid(noise_field, 200, 200);
+    let field = scale(sine_field(0.0, 0.0), 1.0 / (f64::consts::PI * 4.0));
+    let noise_grid = grid(field, 200, 200);
     render(noise_grid, "test.png");
+
+    let field = scale(noise_field(200, 0.98), 0.3);
+    let noise_grid = grid(field, 200, 200);
+    render(noise_grid, "terraina.png");
+
+    let field = scale(noise_field(200, 0.98), 0.3);
+    let noise_grid = grid(field, 200, 200);
+    render(noise_grid, "terrainb.png");
+
+    let field = scale(noise_field(200, 0.98), 0.3);
+    let noise_grid = grid(field, 200, 200);
+    render(noise_grid, "terrainc.png");
 }
