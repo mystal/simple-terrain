@@ -1,0 +1,7 @@
+[package]
+name = "simple-terrain"
+version = "0.1.0"
+authors = ["Gabriel Martinez <reitaka@gmail.com>"]
+
+[dependencies]
+image = "*"
